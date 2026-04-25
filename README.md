@@ -1,6 +1,6 @@
-[![Typing SVG](https://readme-typing-svg.herokuapp.com?color=%2336BCF7&lines=Melodist)](https://github.com/WsB2107/yandex_web)
 
-# Melodist
+
+ [![Typing SVG](https://readme-typing-svg.herokuapp.com?color=%2336BCF7&lines=Melodist)](https://github.com/WsB2107/yandex_web)
 
 ## Пояснительная записка
 
