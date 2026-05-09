@@ -172,3 +172,31 @@ def get_ai_suggestion(user, extra_exclude=None):
     except Exception as e:
         print(f" Ошибка с ИИ: {e}")
         return "Air - All I Need"
+
+# обложки
+def get_track_cover(artist, title):
+    # Ищем трек с такими же исполнителем и названием в таблице Track
+    existing = Track.query.filter_by(artist=artist, title=title).first()
+
+    # Если трек уже есть в базе и у него сохранён cover_url, сразу возвращаем его
+    if existing and existing.cover_url:
+        return existing.cover_url
+
+    try:
+        # очищаем строку запроса: убираем всё после ';' или '(', заменяем пробелы на '+'
+        clean = f"{artist} {title}".split(';')[0].split('(')[0].replace(" ", "+")
+
+        # Формируем URL запрос поиска по песням и берем 1 результат
+        resp = http_session.get(
+            f"https://itunes.apple.com/search?term={clean}&entity=song&limit=1",
+            timeout=10
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get('resultCount', 0) > 0:
+                return data['results'][0]['artworkUrl100'].replace('100x100', '600x600')
+    except Exception as e:
+        print(f"Ошибка iTunes: {e}")
+
+    # заглушка, если обложка не найдена
+    return "/static/img/error_image.png"
