@@ -1,55 +1,60 @@
-from flask import Flask
+import os, random
+from datetime import datetime
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify,session
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+import requests
 
-
+#  Инициализация
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
-@app.route('/')
-def index():
-    return f"""<!doctype html>
-                    <html lang="en">
-                      <head>
-                        <meta charset="utf-8">
-                        <title>Привет, Марс!</title>
-                      </head>
-                      <body>
-                        
+app.config['SECRET_KEY'] = os.urandom(24)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///melodist.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
 
- <h1>https://github.com/WsB2107/yandex_web</h1>
- <h1>## Пояснительная записка</h1>
+# Таблица для дизлайков
+disliked_tracks = db.Table('disliked_tracks',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
+    db.Column('track_id', db.Integer, db.ForeignKey('track.id'))
+)
 
- <h1>Автор: Оганян Тигран, Анна Гордецкая, Даниил Слюсарь</h1>
+# Модели
+class User(db.Model, UserMixin):
+    id = db.Column(db.Integer, primary_key=True) #первичный ключ
+    username = db.Column(db.String(50), unique=True, nullable=False)#уникальный логин
+    password = db.Column(db.String(255), nullable=False)#хэш пароля
+    genres = db.Column(db.String(200)) #музыкальные вкусы, заполняются после регистрации на странице
+    artists = db.Column(db.String(200))
+    playlists = db.relationship('Playlist', backref='owner', lazy=True)
+    dislikes = db.relationship('Track', secondary=disliked_tracks, backref='disliked_by')
 
+class Track(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100))
+    artist = db.Column(db.String(100))
+    cover_url = db.Column(db.String(500))
+    genre = db.Column(db.String(100))
 
+class Playlist(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    is_public = db.Column(db.Boolean, default=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    tracks = db.relationship('Track', secondary='playlist_track', lazy='subquery',
+                             backref=db.backref('playlists', lazy=True))
 
- <h1>### Описание проекта:</h1>
-<h2>Melodist - веб приложение, в котором вы можете создавать плейлисты со своей любимой музыкой.</h2>
-<h2>#### В чем задумка: </h2>
-<h2>- составлять собственные подборки, искать тот или иной трек, для дальнейшего прослушивания на музыкальной площадке</h2>
-<h2>- при создании профиля, вы должны указать направления в музыке, а также исполнителей на ваш вкус</h2>
-<h2>- ИИ будет составлять подборки из музыкальных композиций, основанных на ваших вкусах(музыкальный "тиндер")</h2>
-<h2>- лайкайте и добавляйте в плейлисты музыку, что попалась в подборке</h2>
-<h2>- с помощью поиска находите треки, и добавляйте их в свои плейлисты</h2>
-<h2>- также в поиске находите уже существующие пользователей и их плейлисты</h2>
+playlist_track = db.Table('playlist_track',
+    db.Column('playlist_id', db.Integer, db.ForeignKey('playlist.id'), primary_key=True),
+    db.Column('track_id', db.Integer, db.ForeignKey('track.id'), primary_key=True)
+)
 
-
- <h1>## Техническое задание</h1>
-<h2>- создать класс пользователя</h2>
-<h2>  - метод регистрации, входа и выхода из профиля</h2>
-<h2>  - подключение к бд</h2>
-<h2>  - создание страницы для регистрации, входа в аккаунт</h2>
-<h2>  - создание странички для заполнения музыкальных данных после регистрации(обязательна для заполнения)</h2>
-<h2>  - метод создания плейлистов, возможность создания плейлистов для себя(скрытый), или общедоступный(открытый)</h2>
-<h2>- создание страницы музыкальной подборки (музыкального тиндера)</h2>
-<h2>  - работа с ии + бд и музыки</h2>
-<h2>  - создание метода лайка, дизлайка, добавление в плейлист</h2>
-<h2>- поисковая строка</h2>
-<h2>  - метод поиска музыкальных композиций, пользователей, пользовательские открытые плейлисты</h2>
-
-            <h3>здесь должна была быть музыка, но не нашлась =)</h3>
-
-                      </body>
-                    </html>"""
-
-
-if __name__ == '__main__':
-    app.run(port=8080, host='127.0.0.1')
+class Like(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    track_id = db.Column(db.Integer, db.ForeignKey('track.id'), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
