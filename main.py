@@ -200,3 +200,10 @@ def get_track_cover(artist, title):
 
     # заглушка, если обложка не найдена
     return "/static/img/error_image.png"
+
+
+#Запуск
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+    app.run(host='0.0.0.0', port=8080, debug=True)
