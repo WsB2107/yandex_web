@@ -58,3 +58,117 @@ class Like(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     track_id = db.Column(db.Integer, db.ForeignKey('track.id'), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+#  login manager
+@login_manager.user_loader
+def load_user(user_id):
+    return db.session.get(User, int(user_id))
+
+# Сессия для запросов(защита от сбоев в программе)
+http_session = requests.Session()
+retries = Retry(total=2, backoff_factor=0.3, status_forcelist=[500, 502, 503, 504])
+http_session.mount('https://', HTTPAdapter(max_retries=retries))
+
+# LM Studio API
+LM_STUDIO_URL = "http://26.44.241.237:1234/v1/chat/completions"
+
+# запрос в LLM
+def get_ai_suggestion(user, extra_exclude=None):
+
+    # список исключаемых треков
+    if extra_exclude is None:
+        extra_exclude = []
+
+    # модификаторы для разнообразия промптов
+    viewed_tracks = list(extra_exclude)
+    """Возвращает строку 'Artist - Title' или fallback."""
+    moods = [
+        "энергичное для тренировки", "меланхоличное для дождя",
+        "летнее для вечеринки", "глубокое для раздумий",
+        "лоу-фай для учебы", "агрессивное для драйва",
+        "уютное для вечера дома", "ностальгическое"
+    ]
+    decades = ["1970-х", "1980-х", "1990-х", "2000-х", "2010-х", "современную"]
+    roles = [
+        "музыкальный критик Rolling Stone",
+        "диджей из андеграундного клуба",
+        "опытный меломан со стажем 40 лет",
+        "эксперт по поиску скрытых талантов",
+        "нейросеть из будущего, знающая все хиты"
+    ]
+
+    # один модификатор каждого типа случайным образом
+    current_mood = random.choice(moods)
+    current_decade = random.choice(decades)
+    current_role = random.choice(roles)
+
+    # сбор истории треков для исключения повторов
+    fav_playlist = Playlist.query.filter_by(user_id=user.id, name="Любимое").first()
+    if fav_playlist:
+        viewed_tracks += [f"{t.artist} - {t.title}" for t in fav_playlist.tracks]
+    viewed_tracks += [f"{t.artist} - {t.title}" for t in user.dislikes]
+
+    #  последние 15 треков, чтобы промпт не был слишком длинным
+    exclude_str = ", ".join(viewed_tracks[-15:]) if viewed_tracks else "None"
+
+    # музыкальные предпочтения пользователя
+    user_genres = user.genres if user.genres and user.genres != "None" else "Pop, Rock, Electronic"
+    user_artists = user.artists if user.artists and user.artists != "None" else "Famous artists"
+
+
+    # неожиданный трек вне стандартных вкусов
+    neogid = random.random() < 0.2
+    target_instruction = (
+        f"Забудь на миг о стандартах. Предложи что-то совершенно необычное (Wildcard), но что может зацепить фаната {user_genres}."
+        if neogid
+        else f"Ориентируйся на вкусы: {user_genres} и {user_artists}. Учти эпоху: {current_decade}."
+    )
+
+    #  полный текст промта
+    prompt = f"""
+    {target_instruction}
+    Настроение трека: {current_mood}.
+
+    КРИТИЧЕСКОЕ ПРАВИЛО: Не предлагай ничего из этого списка: [{exclude_str}].
+    Найди 'Hidden Gem' (редкий или очень качественный трек), избегай самого мейнстрима.
+
+    Ответь ТОЛЬКО в формате: Исполнитель - Название
+    """
+
+    # отправка запроса к LM Studio
+    payload = {
+        "messages": [
+            {"role": "system",
+             "content": f"Ты — {current_role}. Твоя задача — находить редкую и крутую музыку. Отвечай только строкой 'Artist - Title'."},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.85,
+        "max_tokens": 150,
+        "stop": ["\n", "Исполнитель", "Название"]  # принудительно стоп
+    }
+
+    try:
+
+        # запрос к локальному серверу LM Studio
+        response = http_session.post(LM_STUDIO_URL, json=payload, timeout=12)
+
+        # если сервер ответил ошибкой, сразу возвращаем запасной трек
+        if response.status_code != 200:
+            print(f"Ошибка API: {response.status_code}")
+            return "Massive Attack - Teardrop"
+
+        raw_content = response.json()['choices'][0]['message']['content'].strip()
+        print(f"\n- {raw_content}")
+
+        # очистка ответа
+        content = raw_content.split('\n')[0].split(';')[0].split(',')[0].strip()
+        clean = content.replace('"', '').replace("'", "").strip()
+
+        if " - " not in clean:
+            return "Massive Attack - Teardrop"
+        return clean
+
+    # ошибка с LLM
+    except Exception as e:
+        print(f" Ошибка с ИИ: {e}")
+        return "Air - All I Need"
