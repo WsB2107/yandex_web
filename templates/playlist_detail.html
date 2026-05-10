@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="playlist-detail">
+    <h1>{{ playlist.name }}</h1>
+    <p class="meta">
+        {% if playlist.is_public %}🌐 Открытый{% else %}🔒 Личный{% endif %} ·
+        {{ playlist.tracks|length }} треков
+    </p>
+
+    <div class="track-list">
+        {% for track in playlist.tracks %}
+        <div class="track-item">
+            <img src="{{ track.cover_url or 'https://via.placeholder.com/48' }}" class="track-cover-small" alt="">
+            <div class="track-info">
+                <strong>{{ track.title }}</strong>
+                <span>{{ track.artist }}</span>
+            </div>
+            <span class="track-genre">{{ track.genre }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

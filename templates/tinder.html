@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .tinder-container { position: relative; height: 70vh; display: flex; align-items: center; justify-content: center; }
+    .track-card { background: #1e1e1e; padding: 20px; border-radius: 20px; text-align: center; width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: transform 0.3s ease; }
+    .cover-image { width: 100%; height: 280px; border-radius: 15px; object-fit: cover; background: #333; }
+    .loader { border: 4px solid #333; border-top: 4px solid #fcc419; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; position: absolute; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .controls { display: flex; justify-content: space-between; margin-top: 20px; gap: 10px;}
+    .btn-circle { width: 60px; height: 60px; border-radius: 50%; border: none; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .btn-dislike { background: #333; color: white; }
+    .btn-like { background: #fcc419; color: black; }
+</style>
+
+<div class="tinder-container" id="tinderContainer">
+    <div class="loader" id="loader"></div>
+
+    <div class="track-card" id="trackCard" style="display: none;">
+        <img id="coverImg" class="cover-image" src="" alt="Cover">
+        <h2 id="trackTitle" style="margin: 15px 0 5px 0;">Название трека</h2>
+        <p id="trackArtist" style="color: #888; margin: 0 0 20px 0;">Исполнитель</p>
+
+        <div class="controls">
+            <button class="btn-circle btn-dislike" onclick="sendAction('dislike')">❌</button>
+            <button class="btn-circle btn-like" onclick="sendAction('like')">❤️</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentTrack = {};
+
+    // Функция загрузки нового трека
+    async function loadNextTrack() {
+        document.getElementById('loader').style.display = 'block';
+        document.getElementById('trackCard').style.display = 'none';
+
+        // Идем на наш сервер, который опрашивает LM Studio
+        const response = await fetch('/api/get_next_track');
+        currentTrack = await response.json();
+
+        // Обновляем карточку
+        document.getElementById('coverImg').src = currentTrack.cover;
+        document.getElementById('trackTitle').innerText = currentTrack.title;
+        document.getElementById('trackArtist').innerText = currentTrack.artist;
+
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('trackCard').style.display = 'block';
+    }
+
+    // Функция отправки лайка/дизлайка
+    async function sendAction(actionType) {
+        // Визуальный эффект
+        const card = document.getElementById('trackCard');
+        card.style.transform = actionType === 'like' ? 'translateX(100px) rotate(10deg)' : 'translateX(-100px) rotate(-10deg)';
+        card.style.opacity = '0';
+
+        // Отправляем данные на сервер
+        await fetch('/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                artist: currentTrack.artist,
+                title: currentTrack.title,
+                cover: currentTrack.cover,
+                action: actionType
+            })
+        });
+
+        // Возвращаем карточку на место и грузим новый трек
+        setTimeout(() => {
+            card.style.transform = 'none';
+            card.style.opacity = '1';
+            loadNextTrack();
+        }, 300);
+    }
+
+    // Грузим первый трек при открытии страницы
+    window.onload = loadNextTrack;
+</script>
+{% endblock %}
