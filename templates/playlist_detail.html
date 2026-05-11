@@ -1,7 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="playlist-detail">
-    <h1>{{ playlist.name }}</h1>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h1>{{ playlist.name }}</h1>
+        <div>
+            <form method="POST" action="{{ url_for('toggle_playlist_public', playlist_id=playlist.id) }}" style="display: inline;">
+                <button type="submit" class="btn-outline" style="margin-right: 10px;">
+                    {% if playlist.is_public %}🔒 Сделать личным{% else %}🌐 Сделать открытым{% endif %}
+                </button>
+            </form>
+            <form method="POST" action="{{ url_for('delete_playlist', playlist_id=playlist.id) }}"
+                  onsubmit="return confirm('Вы уверены, что хотите удалить плейлист «{{ playlist.name }}»? Это действие нельзя отменить.');"
+                  style="display: inline;">
+                <button type="submit" class="btn-outline" style="border-color: #ff5252; color: #ff5252;">🗑️ Удалить плейлист</button>
+            </form>
+        </div>
+    </div>
     <p class="meta">
         {% if playlist.is_public %}🌐 Открытый{% else %}🔒 Личный{% endif %} ·
         {{ playlist.tracks|length }} треков
@@ -15,8 +29,13 @@
                 <strong>{{ track.title }}</strong>
                 <span>{{ track.artist }}</span>
             </div>
-            <span class="track-genre">{{ track.genre }}</span>
+            <span class="track-genre">{{ track.genre or '—' }}</span>
+            <form method="POST" action="{{ url_for('remove_track_from_playlist', playlist_id=playlist.id, track_id=track.id) }}">
+    <button type="submit" class="btn-outline" style="padding: 0.2rem 0.8rem; font-size: 0.8rem;">✖️</button>
+</form>
         </div>
+        {% else %}
+        <p class="empty-message">В плейлисте пока нет треков. Добавьте их через тиндер или поиск.</p>
         {% endfor %}
     </div>
 </div>

@@ -21,8 +21,9 @@
         <p id="trackArtist" style="color: #888; margin: 0 0 20px 0;">Исполнитель</p>
 
         <div class="controls">
-            <button class="btn-circle btn-dislike" onclick="sendAction('dislike')">❌</button>
-            <button class="btn-circle btn-like" onclick="sendAction('like')">❤️</button>
+    <button class="btn-circle btn-dislike" onclick="sendAction('dislike')">❌</button>
+    <button class="btn-circle btn-playlist" onclick="addToFirstPlaylist()">📁</button>
+    <button class="btn-circle btn-like" onclick="sendAction('like')">❤️</button>
         </div>
     </div>
 </div>
@@ -30,52 +31,71 @@
 <script>
     let currentTrack = {};
 
-    // Функция загрузки нового трека
-    async function loadNextTrack() {
-        document.getElementById('loader').style.display = 'block';
-        document.getElementById('trackCard').style.display = 'none';
+async function loadNextTrack() {
+    document.getElementById('loader').style.display = 'block';
+    document.getElementById('trackCard').style.display = 'none';
 
-        // Идем на наш сервер, который опрашивает LM Studio
-        const response = await fetch('/api/get_next_track');
-        currentTrack = await response.json();
+    const response = await fetch('/api/get_next_track');
+    currentTrack = await response.json();
 
-        // Обновляем карточку
-        document.getElementById('coverImg').src = currentTrack.cover;
-        document.getElementById('trackTitle').innerText = currentTrack.title;
-        document.getElementById('trackArtist').innerText = currentTrack.artist;
+    document.getElementById('coverImg').src = currentTrack.cover;
+    document.getElementById('trackTitle').innerText = currentTrack.title;
+    document.getElementById('trackArtist').innerText = currentTrack.artist;
 
-        document.getElementById('loader').style.display = 'none';
-        document.getElementById('trackCard').style.display = 'block';
+    document.getElementById('loader').style.display = 'none';
+    document.getElementById('trackCard').style.display = 'block';
+}
+
+async function sendAction(actionType) {
+    const card = document.getElementById('trackCard');
+    card.style.transform = actionType === 'like' ? 'translateX(100px) rotate(10deg)' : 'translateX(-100px) rotate(-10deg)';
+    card.style.opacity = '0';
+
+    await fetch('/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            artist: currentTrack.artist,
+            title: currentTrack.title,
+            cover: currentTrack.cover,
+            action: actionType
+        })
+    });
+
+    setTimeout(() => {
+        card.style.transform = 'none';
+        card.style.opacity = '1';
+        loadNextTrack();
+    }, 300);
+}
+
+async function addToFirstPlaylist() {
+    if (!currentTrack.title) return;
+
+    const card = document.getElementById('trackCard');
+    card.style.transform = 'scale(0.95)';
+    setTimeout(() => { card.style.transform = 'scale(1)'; }, 200);
+
+    const response = await fetch('/add_to_first_playlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            artist: currentTrack.artist,
+            title: currentTrack.title,
+            cover: currentTrack.cover
+        })
+    });
+
+    if (response.ok) {
+        const btn = document.querySelector('.btn-playlist');
+        const originalText = btn.innerText;
+        btn.innerText = '✅';
+        setTimeout(() => { btn.innerText = originalText; }, 1000);
+    } else {
+        alert('Не удалось добавить в плейлист');
     }
+}
 
-    // Функция отправки лайка/дизлайка
-    async function sendAction(actionType) {
-        // Визуальный эффект
-        const card = document.getElementById('trackCard');
-        card.style.transform = actionType === 'like' ? 'translateX(100px) rotate(10deg)' : 'translateX(-100px) rotate(-10deg)';
-        card.style.opacity = '0';
-
-        // Отправляем данные на сервер
-        await fetch('/action', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                artist: currentTrack.artist,
-                title: currentTrack.title,
-                cover: currentTrack.cover,
-                action: actionType
-            })
-        });
-
-        // Возвращаем карточку на место и грузим новый трек
-        setTimeout(() => {
-            card.style.transform = 'none';
-            card.style.opacity = '1';
-            loadNextTrack();
-        }, 300);
-    }
-
-    // Грузим первый трек при открытии страницы
-    window.onload = loadNextTrack;
+window.onload = loadNextTrack;
 </script>
 {% endblock %}
