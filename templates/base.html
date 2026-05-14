@@ -8,19 +8,17 @@
 </head>
 <body class="dark">
     <nav class="navbar">
-    <a href="{{ url_for('index') }}" class="logo">🎵 Melodist</a>
-    {% if current_user.is_authenticated %}
-        <div class="nav-links">
-            <a href="{{ url_for('tinder') }}">🔥 Тиндер</a>
-            <a href="{{ url_for('playlists') }}">📁 Плейлисты</a>
-            <a href="{{ url_for('search') }}">🔍 Поиск</a>
-            <span class="user-badge">{{ current_user.username }}</span>
-            <a href="{{ url_for('logout') }}" class="btn-outline">Выйти</a>
-            <!-- Кнопка переключения темы -->
-            <button id="theme-toggle" class="theme-toggle" aria-label="Переключить тему">🌙</button>
-        </div>
-    {% endif %}
-</nav>
+        <a href="{{ url_for('index') }}" class="logo">🎵 Melodist</a>
+        {% if current_user.is_authenticated %}
+            <div class="nav-links">
+                <a href="{{ url_for('tinder') }}">🔥 Тиндер</a>
+                <a href="{{ url_for('playlists') }}">📁 Плейлисты</a>
+                <a href="{{ url_for('search') }}">🔍 Поиск</a>
+                <span class="user-badge">{{ current_user.username }}</span>
+                <a href="{{ url_for('logout') }}" class="btn-outline">Выйти</a>
+            </div>
+        {% endif %}
+    </nav>
 
     <main class="content">
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -34,36 +32,6 @@
         {% block content %}{% endblock %}
     </main>
 
-    {% block scripts %}<script>
-    (function() {
-        const toggleBtn = document.getElementById('theme-toggle');
-        if (!toggleBtn) return;
-
-        // Функция установки темы
-        function setTheme(theme) {
-            document.body.classList.remove('dark', 'light');
-            document.body.classList.add(theme);
-            localStorage.setItem('theme', theme);
-            toggleBtn.textContent = theme === 'dark' ? '🌙' : '☀️';
-        }
-
-        // Загрузка сохранённой темы или предпочтений системы
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'light' || savedTheme === 'dark') {
-            setTheme(savedTheme);
-        } else {
-            // Если нет сохранённой, проверяем системные предпочтения
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            setTheme(prefersDark ? 'dark' : 'light');
-        }
-
-        // Обработчик кнопки
-        toggleBtn.addEventListener('click', () => {
-            const newTheme = document.body.classList.contains('dark') ? 'light' : 'dark';
-            setTheme(newTheme);
-        });
-    })();
-</script>{% endblock %}
-
+    {% block scripts %}{% endblock %}
 </body>
 </html>
