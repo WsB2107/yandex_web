@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="auth-container">
+    <h2>🎯 Настройка твоих вкусов</h2>
+    <p>Выбери жанры, которые тебе по душе, чтобы мы могли подобрать музыку.</p>
+
+    <form method="POST">
+        <div class="genre-grid">
+            {% for genre in ['Rock', 'Pop', 'Hip-Hop', 'Electronic', 'Jazz', 'Classical', 'Lo-Fi', 'Phonk', 'Metal'] %}
+            <label class="genre-card">
+                <input type="checkbox" name="genres" value="{{ genre }}">
+                <span>{{ genre }}</span>
+            </label>
+            {% endfor %}
+        </div>
+
+        <div class="input-group">
+            <label>Твои любимые исполнители (через запятую):</label>
+            <input type="text" name="artists" placeholder="Напр: Linkin Park, Hans Zimmer..." required>
+        </div>
+
+        <button type="submit" class="btn-primary">Начать слушать</button>
+    </form>
+</div>
+
+<style>
+    .genre-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    .genre-card {
+        background: #282828;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+        cursor: pointer;
+        transition: 0.3s;
+        border: 2px solid transparent;
+    }
+    .genre-card input { display: none; }
+    .genre-card:has(input:checked) {
+        border-color: #1DB954;
+        background: #333;
+    }
+    .input-group { margin-top: 20px; text-align: left; }
+    .input-group input { width: 100%; padding: 10px; margin-top: 5px; }
+</style>
+{% endblock %}
