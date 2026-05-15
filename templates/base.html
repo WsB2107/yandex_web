@@ -15,6 +15,7 @@
                 <a href="{{ url_for('playlists') }}">📁 Плейлисты</a>
                 <a href="{{ url_for('search') }}">🔍 Поиск</a>
                 <span class="user-badge">{{ current_user.username }}</span>
+                <button id="theme-toggle" class="btn-outline" title="Переключить тему">🌙</button>
                 <a href="{{ url_for('logout') }}" class="btn-outline">Выйти</a>
             </div>
         {% endif %}
@@ -32,6 +33,23 @@
         {% block content %}{% endblock %}
     </main>
 
-    {% block scripts %}{% endblock %}
+    {% block scripts %}
+    <script>
+        const themeToggle = document.getElementById('theme-toggle');
+        
+        // Проверяем сохранённую тему
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        if (savedTheme === 'light') {
+            document.documentElement.classList.add('light-theme');
+            themeToggle.textContent = '☀️';
+        }
+        
+        themeToggle.addEventListener('click', () => {
+            const isLight = document.documentElement.classList.toggle('light-theme');
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            themeToggle.textContent = isLight ? '☀️' : '🌙';
+        });
+    </script>
+    {% endblock %}
 </body>
 </html>

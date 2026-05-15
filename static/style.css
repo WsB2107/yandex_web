@@ -5,11 +5,19 @@
     --accent: #FED42B;
 }
 
-body.dark {
+:root.light-theme {
+    --bg: #f8f8f8;
+    --surface: #ffffff;
+    --text: #000000;
+    --accent: #FED42B;
+}
+
+body {
     background: var(--bg);
     color: var(--text);
     font-family: 'Segoe UI', sans-serif;
     margin: 0;
+    transition: background 0.3s ease, color 0.3s ease;
 }
 
 /* навигация */
