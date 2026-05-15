@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+<script src="{{ url_for('static', filename='js/search.js') }}"></script>
 <h1 class="section-title">Поиск</h1>
 <form class="search-form" method="GET" action="{{ url_for('search') }}">
     <input type="text" name="q" value="{{ query }}" placeholder="Трек, исполнитель или пользователь..." autocomplete="off">
@@ -33,6 +34,7 @@
                 <div class="user-result">
                     <span class="user-avatar">👤</span>
                     <span>{{ user.username }}</span>
+                    <button class="btn-small add-friend-btn" data-username="{{ user.username }}" data-user-id="{{ user.id }}">Добавить в друзья</button>
                 </div>
                 {% endfor %}
             {% else %}

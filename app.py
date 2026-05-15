@@ -223,6 +223,101 @@ def get_track_info(artist, title):
     return "/static/img/error_image.png", "unknowned"
 
 
+# API для управления друзьями
+@app.route('/api/add_friend', methods=['POST'])
+@login_required
+def add_friend():
+    data = request.json
+    user_id = data.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'User ID is required'}), 400
+    
+    friend = User.query.get(user_id)
+    if not friend:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Проверяем, не в друзьях ли уже
+    existing = db.session.execute(
+        db.select(friendship).where(
+            friendship.c.user_id == current_user.id,
+            friendship.c.friend_id == friend.id
+        )
+    ).first()
+    
+    if existing:
+        return jsonify({'error': 'Already sent request or friends'}), 400
+    
+    # Создаем запись о запросе в друзья
+    db.session.execute(
+        friendship.insert().values(
+            user_id=current_user.id,
+            friend_id=friend.id,
+            status='pending'
+        )
+    )
+    db.session.commit()
+    return jsonify({'status': 'success', 'message': 'Friend request sent'})
+
+@app.route('/api/accept_friend', methods=['POST'])
+@login_required
+def accept_friend():
+    data = request.json
+    user_id = data.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'User ID is required'}), 400
+    
+    # Находим запрос
+    stmt = db.select(friendship).where(
+        friendship.c.user_id == user_id,
+        friendship.c.friend_id == current_user.id,
+        friendship.c.status == 'pending'
+    )
+    request_record = db.session.execute(stmt).first()
+    
+    if not request_record:
+        return jsonify({'error': 'Friend request not found'}), 404
+    
+    # Обновляем статус на accepted
+    db.session.execute(
+        friendship.update()
+        .where(
+            friendship.c.user_id == user_id,
+            friendship.c.friend_id == current_user.id
+        )
+        .values(status='accepted')
+    )
+    
+    # Создаем обратную запись для двусторонней дружбы
+    db.session.execute(
+        friendship.insert().values(
+            user_id=current_user.id,
+            friend_id=user_id,
+            status='accepted'
+        )
+    )
+    
+    db.session.commit()
+    return jsonify({'status': 'success', 'message': 'Friend request accepted'})
+
+@app.route('/api/reject_friend', methods=['POST'])
+@login_required
+def reject_friend():
+    data = request.json
+    user_id = data.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'User ID is required'}), 400
+    
+    # Удаляем запрос
+    db.session.execute(
+        friendship.delete().where(
+            friendship.c.user_id == user_id,
+            friendship.c.friend_id == current_user.id,
+            friendship.c.status == 'pending'
+        )
+    )
+    db.session.commit()
+    return jsonify({'status': 'success', 'message': 'Friend request rejected'})
+
 # маршруты
 @app.route('/')
 def index():
