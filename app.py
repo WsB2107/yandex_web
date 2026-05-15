@@ -10,7 +10,7 @@ from datetime import timedelta
 import requests
 
 # LM Studio API
-LM_STUDIO_URL = "http://127.0.0.1:1234/v1/chat/completions"
+LM_STUDIO_URL = "МЕСТО ДЛЯ ССЫЛКИ/v1/chat/completions"
 
 #  Инициализация
 app = Flask(__name__)
