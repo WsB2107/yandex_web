@@ -41,6 +41,14 @@ class User(db.Model, UserMixin):
     playlists = db.relationship('Playlist', backref='owner', lazy=True)
     dislikes = db.relationship('Track', secondary=disliked_tracks, backref='disliked_by')
 
+# Таблица для дружбы
+friendship = db.Table('friendship',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('friend_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('status', db.String(20), default='pending'),  # pending, accepted, rejected
+    db.Column('created_at', db.DateTime, default=datetime.utcnow)
+)
+
 
 class Track(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -409,7 +417,20 @@ def search():
 @login_required
 def profile():
     playlists = Playlist.query.filter_by(user_id=current_user.id).all()
-    return render_template('profile.html', user=current_user, playlists=playlists)
+    
+    # Получаем друзей пользователя
+    friends = db.session.scalars(
+        db.select(User).join(friendship, User.id == friendship.c.friend_id)
+        .where(friendship.c.user_id == current_user.id, friendship.c.status == 'accepted')
+    ).all()
+    
+    # Получаем входящие заявки в друзья
+    friend_requests = db.session.scalars(
+        db.select(User).join(friendship, User.id == friendship.c.user_id)
+        .where(friendship.c.friend_id == current_user.id, friendship.c.status == 'pending')
+    ).all()
+    
+    return render_template('profile.html', user=current_user, playlists=playlists, friends=friends, friend_requests=friend_requests)
 
 
 @app.route('/add_to_first_playlist', methods=['POST'])

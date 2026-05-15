@@ -37,6 +37,73 @@
         {% else %}
             <p class="empty-message">У вас пока нет плейлистов</p>
         {% endif %}
+
+        <h2>Друзья</h2>
+        <div class="friends-section">
+            <div class="friends-tabs">
+                <button class="tab-btn active" data-tab="friends">Друзья</button>
+                <button class="tab-btn" data-tab="requests">Заявки</button>
+            </div>
+
+            <div class="tab-content" id="friends-tab">
+                {% if friends %}
+                    <div class="friends-grid">
+                        {% for friend in friends %}
+                            <div class="friend-item">
+                                <a href="{{ url_for('profile') }}" class="friend-link">
+                                    {% if friend.avatar %}
+                                        <img src="{{ friend.avatar }}" alt="Аватар" class="friend-avatar">
+                                    {% else %}
+                                        <div class="friend-avatar-placeholder">{{ friend.username[0] }}</div>
+                                    {% endif %}
+                                    <span class="friend-name">{{ friend.username }}</span>
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="empty-message">У вас пока нет друзей</p>
+                {% endif %}
+            </div>
+
+            <div class="tab-content" id="requests-tab" style="display: none;">
+                <div class="requests-grid">
+                    {% for request in friend_requests %}
+                        <div class="request-item">
+                            <div class="request-user">
+                                {% if request.avatar %}
+                                    <img src="{{ request.avatar }}" alt="Аватар" class="request-avatar">
+                                {% else %}
+                                    <div class="request-avatar-placeholder">{{ request.username[0] }}</div>
+                                {% endif %}
+                                <span class="request-name">{{ request.username }}</span>
+                            </div>
+                            <div class="request-actions">
+                                <button class="btn-accent accept-friend" data-user-id="{{ request.id }}">Принять</button>
+                                <button class="btn-outline reject-friend" data-user-id="{{ request.id }}">Отклонить</button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<script>
+    // Переключение вкладок друзей
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            
+            const tabId = btn.getAttribute('data-tab');
+            document.getElementById(tabId + '-tab').style.display = 'block';
+        });
+    });
+</script>
 {% endblock %}
