@@ -8,6 +8,10 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import requests
 
+
+# LM Studio API
+LM_STUDIO_URL = "http://127.0.0.1:1234/v1/chat/completions"
+
 #  Инициализация
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
@@ -76,8 +80,6 @@ http_session = requests.Session()
 retries = Retry(total=2, backoff_factor=0.3, status_forcelist=[500, 502, 503, 504])
 http_session.mount('https://', HTTPAdapter(max_retries=retries))
 
-# LM Studio API
-LM_STUDIO_URL = "https://fqzb43-95-27-115-128.ru.tuna.am/v1/chat/completions"
 
 
 # запрос в LLM
@@ -149,7 +151,7 @@ def get_ai_suggestion(user, extra_exclude=None):
             {"role": "user", "content": prompt}
         ],
         "temperature": 0.85,
-        "max_tokens": 150,
+        "max_tokens": 250,
         "stop": ["\n", "Исполнитель", "Название"]  # принудительно стоп
     }
 
