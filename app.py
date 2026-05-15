@@ -151,7 +151,7 @@ def get_ai_suggestion(user, extra_exclude=None):
             {"role": "user", "content": prompt}
         ],
         "temperature": 0.85,
-        "max_tokens": 250,
+        "max_tokens": 150,
         "stop": ["\n", "Исполнитель", "Название"]  # принудительно стоп
     }
 
