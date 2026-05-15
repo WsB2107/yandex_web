@@ -6,6 +6,7 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from datetime import timedelta
 import requests
 
 
@@ -15,6 +16,9 @@ LM_STUDIO_URL = "http://127.0.0.1:1234/v1/chat/completions"
 #  Инициализация
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=30)
+app.config['SESSION_PERMANENT'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///melodist.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -241,11 +245,10 @@ def login():
     if request.method == 'POST':
         user = User.query.filter_by(username=request.form['username']).first()
         if user and check_password_hash(user.password, request.form['password']):
-            login_user(user)
+            login_user(user, remember=True)
             return redirect(url_for('tinder'))
         flash("Неверный логин или пароль", 'danger')
     return render_template('login.html')
-
 
 @app.route('/logout')
 @login_required
