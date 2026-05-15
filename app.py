@@ -405,6 +405,13 @@ def search():
     return render_template('search.html', query=query, results=results)
 
 
+@app.route('/profile')
+@login_required
+def profile():
+    playlists = Playlist.query.filter_by(user_id=current_user.id).all()
+    return render_template('profile.html', user=current_user, playlists=playlists)
+
+
 @app.route('/add_to_first_playlist', methods=['POST'])
 @login_required
 def add_to_first_playlist():

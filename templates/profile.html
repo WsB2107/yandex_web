@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="profile-header">
+        <div class="avatar">
+            {% if user.avatar %}
+                <img src="{{ user.avatar }}" alt="Аватар" class="avatar-img">
+            {% else %}
+                <div class="avatar-placeholder">{{ user.username[0] }}</div>
+            {% endif %}
+        </div>
+        <div class="profile-info">
+            <h1>{{ user.username }}</h1>
+            <p class="playlist-count">{{ playlists|length }} плейлистов</p>
+        </div>
+    </div>
+
+    <div class="profile-content">
+        <h2>Мои плейлисты</h2>
+        {% if playlists %}
+            <div class="playlist-grid">
+                {% for playlist in playlists %}
+                    <a href="{{ url_for('playlist_detail', playlist_id=playlist.id) }}" class="playlist-card">
+                        <div class="playlist-cover">
+                            {% if playlist.tracks %}
+                                <img src="{{ playlist.tracks[0].cover_url }}" alt="Обложка" class="playlist-cover-img">
+                            {% else %}
+                                <span>🎵</span>
+                            {% endif %}
+                        </div>
+                        <h3>{{ playlist.name }}</h3>
+                        <p>{{ playlist.tracks|length }} треков</p>
+                    </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-message">У вас пока нет плейлистов</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
