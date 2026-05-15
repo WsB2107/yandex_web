@@ -9,7 +9,6 @@ from urllib3.util.retry import Retry
 from datetime import timedelta
 import requests
 
-
 # LM Studio API
 LM_STUDIO_URL = "http://127.0.0.1:1234/v1/chat/completions"
 
@@ -83,7 +82,6 @@ def load_user(user_id):
 http_session = requests.Session()
 retries = Retry(total=2, backoff_factor=0.3, status_forcelist=[500, 502, 503, 504])
 http_session.mount('https://', HTTPAdapter(max_retries=retries))
-
 
 
 # запрос в LLM
@@ -186,33 +184,35 @@ def get_ai_suggestion(user, extra_exclude=None):
         return "Air - All I Need"
 
 
-# обложки
-def get_track_cover(artist, title):
-    # Ищем трек с такими же исполнителем и названием в таблице Track
+# обложки + жанры
+def get_track_info(artist, title):
+    # Проверяем в базе данных, вдруг мы уже искали этот трек
     existing = Track.query.filter_by(artist=artist, title=title).first()
-
-    # Если трек уже есть в базе и у него сохранён cover_url, сразу возвращаем его
-    if existing and existing.cover_url:
-        return existing.cover_url
+    if existing and existing.cover_url and existing.genre:
+        return existing.cover_url, existing.genre
 
     try:
-        # очищаем строку запроса: убираем всё после ';' или '(', заменяем пробелы на '+'
-        clean = f"{artist} {title}".split(';')[0].split('(')[0].replace(" ", "+")
-
-        # Формируем URL запрос поиска по песням и берем 1 результат
+        # Очистка запроса для iTunes
+        clean_query = f"{artist} {title}".split(';')[0].split('(')[0].replace(" ", "+")
         resp = http_session.get(
-            f"https://itunes.apple.com/search?term={clean}&entity=song&limit=1",
+            f"https://itunes.apple.com/search?term={clean_query}&entity=song&limit=1",
             timeout=10
         )
+
         if resp.status_code == 200:
             data = resp.json()
             if data.get('resultCount', 0) > 0:
-                return data['results'][0]['artworkUrl100'].replace('100x100', '600x600')
+                result = data['results'][0]
+                # Получаем картинку в высоком разрешении
+                cover = result['artworkUrl100'].replace('100x100', '600x600')
+                # Получаем основной жанр
+                genre = result.get('primaryGenreName', 'Music')
+                return cover, genre
     except Exception as e:
-        print(f"Ошибка iTunes: {e}")
+        print(f"Ошибка при запросе к iTunes: {e}")
 
-    # заглушка, если обложка не найдена
-    return "/static/img/error_image.png"
+    # Возвращаем заглушки, если ничего не нашли
+    return "/static/img/error_image.png", "unknowned"
 
 
 # маршруты
@@ -249,6 +249,7 @@ def login():
             return redirect(url_for('tinder'))
         flash("Неверный логин или пароль", 'danger')
     return render_template('login.html')
+
 
 @app.route('/logout')
 @login_required
@@ -315,8 +316,13 @@ def api_get_next_track():
 
     # артист и название
     artist, title = suggestion.split(" - ", 1)
-    cover = get_track_cover(artist.strip(), title.strip())
-    return jsonify({"artist": artist.strip(), "title": title.strip(), "cover": cover})
+    cover, genre = get_track_info(artist.strip(), title.strip())
+    return jsonify({
+        "artist": artist.strip(),
+        "title": title.strip(),
+        "cover": cover,
+        "genre": genre
+    })
 
 
 @app.route('/action', methods=['POST'])
