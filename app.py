@@ -486,7 +486,49 @@ def toggle_playlist_public(playlist_id):
     flash(f'Плейлист теперь {status}', 'success')
     return redirect(url_for('playlist_detail', playlist_id=playlist_id))
 
+@app.route('/api/my_playlists')
+@login_required
+def api_my_playlists():
+    """Возвращает список плейлистов текущего пользователя (id и name) в JSON."""
+    playlists = Playlist.query.filter_by(user_id=current_user.id).all()
+    data = [{"id": p.id, "name": p.name} for p in playlists]
+    return jsonify(data)
 
+@app.route('/add_to_playlist', methods=['POST'])
+@login_required
+def add_to_playlist():
+    """Добавляет трек в указанный плейлист пользователя."""
+    data = request.json
+    playlist_id = data.get('playlist_id')
+    artist = data.get('artist')
+    title = data.get('title')
+    cover = data.get('cover', '')
+    genre = data.get('genre', '')
+
+    # Проверяем существование плейлиста и права
+    playlist = Playlist.query.get(playlist_id)
+    if not playlist or playlist.user_id != current_user.id:
+        return jsonify({"error": "Плейлист не найден или недоступен"}), 403
+
+    # Находим или создаём трек
+    track = Track.query.filter_by(title=title, artist=artist).first()
+    if not track:
+        track = Track(title=title, artist=artist, cover_url=cover, genre=genre)
+        db.session.add(track)
+        db.session.flush()
+    else:
+        # Если трек уже есть, но жанр не заполнен – обновим
+        if not track.genre and genre:
+            track.genre = genre
+            db.session.commit()
+
+    # Добавляем в плейлист, если ещё не добавлен
+    if track not in playlist.tracks:
+        playlist.tracks.append(track)
+        db.session.commit()
+        return jsonify({"status": "added", "playlist": playlist.name})
+    else:
+        return jsonify({"status": "already_exists", "playlist": playlist.name})
 # Запуск
 if __name__ == '__main__':
     with app.app_context():

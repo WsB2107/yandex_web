@@ -23,14 +23,33 @@
 
         <div class="controls">
     <button class="btn-circle btn-dislike" onclick="sendAction('dislike')">❌</button>
-    <button class="btn-circle btn-playlist" onclick="addToFirstPlaylist()">📁</button>
+   <button class="btn-circle btn-playlist">📁</button>
     <button class="btn-circle btn-like" onclick="sendAction('like')">❤️</button>
+
+            <div id="playlistModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h3>Выберите плейлист</h3>
+        <div id="playlistList">
+            <p>Загрузка...</p>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button id="confirmAddBtn" class="btn-accent" style="flex: 1;">➕ Добавить</button>
+            <button id="cancelModalBtn" class="btn-outline" style="flex: 1;">Отмена</button>
         </div>
     </div>
 </div>
+</div>
+
+        </div>
+    </div>
+
 
 <script>
-    let currentTrack = {};
+
+   let currentTrack = {};
+let selectedPlaylistId = null;
+let currentTrackForPlaylist = null;
 
 async function loadNextTrack() {
     document.getElementById('loader').style.display = 'block';
@@ -72,32 +91,135 @@ async function sendAction(actionType) {
     }, 300);
 }
 
-async function addToFirstPlaylist() {
-    if (!currentTrack.title) return;
-
-    const card = document.getElementById('trackCard');
-    card.style.transform = 'scale(0.95)';
-    setTimeout(() => { card.style.transform = 'scale(1)'; }, 200);
-
-    const response = await fetch('/add_to_first_playlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            artist: currentTrack.artist,
-            title: currentTrack.title,
-            cover: currentTrack.cover
-        })
-    });
-
-    if (response.ok) {
-        const btn = document.querySelector('.btn-playlist');
-        const originalText = btn.innerText;
-        btn.innerText = '✅';
-        setTimeout(() => { btn.innerText = originalText; }, 1000);
-    } else {
-        alert('Не удалось добавить в плейлист');
+async function loadPlaylists() {
+    const container = document.getElementById('playlistList');
+    if (!container) return;
+    container.innerHTML = '<p>Загрузка...</p>';
+    try {
+        const response = await fetch('/api/my_playlists');
+        const playlists = await response.json();
+        if (playlists.length === 0) {
+            container.innerHTML = '<p>У вас нет плейлистов. Создайте их на странице "Плейлисты".</p>';
+            return;
+        }
+        container.innerHTML = '';
+        playlists.forEach(pl => {
+            const div = document.createElement('div');
+            div.className = 'playlist-option';
+            div.textContent = pl.name;
+            div.dataset.id = pl.id;
+            div.onclick = () => {
+                document.querySelectorAll('.playlist-option').forEach(opt => opt.classList.remove('selected'));
+                div.classList.add('selected');
+                selectedPlaylistId = pl.id;
+            };
+            container.appendChild(div);
+        });
+        if (playlists.length > 0) {
+            const first = document.querySelector('.playlist-option');
+            first.classList.add('selected');
+            selectedPlaylistId = playlists[0].id;
+        }
+    } catch (err) {
+        container.innerHTML = '<p>Ошибка загрузки плейлистов</p>';
+        console.error(err);
     }
 }
+
+function showPlaylistModal(track) {
+    currentTrackForPlaylist = track;
+    const modal = document.getElementById('playlistModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    loadPlaylists();
+}
+
+async function addToSelectedPlaylist() {
+    if (!selectedPlaylistId) {
+        alert('Выберите плейлист');
+        return;
+    }
+    if (!currentTrackForPlaylist) return;
+
+    const btn = document.getElementById('confirmAddBtn');
+    const originalText = btn.innerText;
+    btn.innerText = '⏳';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/add_to_playlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                playlist_id: selectedPlaylistId,
+                artist: currentTrackForPlaylist.artist,
+                title: currentTrackForPlaylist.title,
+                cover: currentTrackForPlaylist.cover,
+                genre: currentTrackForPlaylist.genre
+            })
+        });
+        const result = await response.json();
+        if (response.ok) {
+            if (result.status === 'added') {
+                btn.innerText = '✅';
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }, 1000);
+            } else if (result.status === 'already_exists') {
+                alert('Трек уже есть в этом плейлисте');
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+            closeModal();
+        } else {
+            alert(result.error || 'Ошибка добавления');
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    } catch (err) {
+        alert('Ошибка соединения');
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+}
+
+function closeModal() {
+    const modal = document.getElementById('playlistModal');
+    if (modal) modal.style.display = 'none';
+    selectedPlaylistId = null;
+    currentTrackForPlaylist = null;
+}
+
+function addToPlaylistHandler() {
+    if (!currentTrack.title) return;
+    showPlaylistModal(currentTrack);
+}
+
+// Инициализация после загрузки страницы
+document.addEventListener('DOMContentLoaded', () => {
+    loadNextTrack();
+
+    const modal = document.getElementById('playlistModal');
+    const closeSpan = document.querySelector('.close-modal');
+    const cancelBtn = document.getElementById('cancelModalBtn');
+    const confirmBtn = document.getElementById('confirmAddBtn');
+
+    if (closeSpan) closeSpan.onclick = closeModal;
+    if (cancelBtn) cancelBtn.onclick = closeModal;
+    if (confirmBtn) confirmBtn.onclick = addToSelectedPlaylist;
+
+    if (modal) {
+        window.onclick = (event) => {
+            if (event.target === modal) closeModal();
+        };
+    }
+
+    const playlistBtn = document.querySelector('.btn-playlist');
+    if (playlistBtn) {
+        playlistBtn.onclick = addToPlaylistHandler;
+    }
+});
 
 window.onload = loadNextTrack;
 </script>
